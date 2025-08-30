@@ -1,6 +1,6 @@
-// index.js — step 4.3: add From filter (notificaciones@deunaapp.com) + Monto/Motivo extraction
+// index.js — step 4.5: convert "Monto" to USD number and to ETH using Coinbase price
 // Run: npm i mailparser imapflow cheerio dotenv
-//      node index.js
+// Requires Node 18+ (global fetch). If older, install node-fetch and adapt.
 
 import 'dotenv/config'
 import { ImapFlow } from 'imapflow'
@@ -108,6 +108,64 @@ function getAddresses(addrObj) {
   return arr.map((x) => (x.address || '').toLowerCase()).filter(Boolean)
 }
 
+// Parse Monto string like "$0,50 USD" or "$1,234.56"
+function parseUSDFromMonto(monto = '') {
+  if (!monto) return null
+  let s = monto
+    .replace(/\u00a0/g, ' ') // NBSP -> space
+    .replace(/\s+/g, ' ') // collapse spaces
+    .replace(/usd/gi, '')
+    .replace(/us\$/gi, '')
+    .replace(/\$/g, '')
+    .replace(/\s/g, '')
+    .replace(/[^0-9,.-]/g, '') // keep digits and separators
+
+  if (!s) return null
+
+  const lastComma = s.lastIndexOf(',')
+  const lastDot = s.lastIndexOf('.')
+  let decimalSep = null
+  if (lastComma === -1 && lastDot === -1) decimalSep = null
+  else if (lastComma === -1) decimalSep = '.'
+  else if (lastDot === -1) decimalSep = ','
+  else decimalSep = lastComma > lastDot ? ',' : '.' // last separator wins
+
+  // Build a normalized number: keep digits; keep only the last decimal separator as '.'
+  const lastIdx = decimalSep === ',' ? lastComma : lastDot
+  let out = ''
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i]
+    if (ch >= '0' && ch <= '9') out += ch
+    else if ((ch === ',' || ch === '.') && i === lastIdx) out += '.'
+    // ignore other separators (thousands)
+  }
+  if (!out || out === '.') return null
+  const num = Number(out)
+  return Number.isFinite(num) ? num : null
+}
+
+async function getEthSpotUSD() {
+  const url = 'https://api.coinbase.com/v2/prices/ETH-USD/spot'
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), 5000)
+  try {
+    const res = await fetch(url, {
+      signal: ctrl.signal,
+      headers: { Accept: 'application/json' },
+    })
+    clearTimeout(timer)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const json = await res.json()
+    const amt = json?.data?.amount
+    const n = Number(amt)
+    return Number.isFinite(n) ? n : null
+  } catch (e) {
+    clearTimeout(timer)
+    console.error('Price fetch failed:', e?.message || e)
+    return null
+  }
+}
+
 // 🔥 Action hook: log only when (subject starts with !Recibiste/¡Recibiste) AND (From is notificaciones@deunaapp.com)
 async function onNewEmail(parsed) {
   const fromText = parsed.from?.text || ''
@@ -128,16 +186,22 @@ async function onNewEmail(parsed) {
     .filter(Boolean)
 
   const { monto, motivo } = extractMontoMotivo(parsed)
+  const montoUSD = parseUSDFromMonto(monto)
+  const ethUsd = await getEthSpotUSD()
+  const montoETH = montoUSD != null && ethUsd ? montoUSD / ethUsd : null
 
   console.log('--- NEW EMAIL -------------------------------------------------')
-  console.log('From   :', fromText)
-  console.log('To     :', to)
-  if (cc) console.log('Cc     :', cc)
-  console.log('Subject:', subjectRaw)
-  if (monto) console.log('Monto  :', monto)
-  if (motivo) console.log('Motivo :', motivo)
-  if (attachments.length) console.log('Files  :', attachments.join(', '))
-  console.log('Msg-ID :', parsed.messageId)
+  console.log('From     :', fromText)
+  console.log('To       :', to)
+  if (cc) console.log('Cc       :', cc)
+  console.log('Subject  :', subjectRaw)
+  if (monto) console.log('Monto    :', monto)
+  if (montoUSD != null) console.log('MontoUSD :', montoUSD.toFixed(2))
+  if (ethUsd) console.log('ETH/USD  :', ethUsd)
+  if (montoETH != null) console.log('MontoETH :', montoETH.toFixed(8))
+  if (motivo) console.log('Motivo   :', motivo)
+  if (attachments.length) console.log('Files    :', attachments.join(', '))
+  console.log('Msg-ID   :', parsed.messageId)
   console.log('---------------------------------------------------------------')
 }
 
