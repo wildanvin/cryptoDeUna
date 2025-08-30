@@ -1,9 +1,11 @@
-// index.js — step 4.1: filter by subject prefix "!Recibiste" and log matching emails
-// Run: node index.js
+// index.js — step 4.3: add From filter (notificaciones@deunaapp.com) + Monto/Motivo extraction
+// Run: npm i mailparser imapflow cheerio dotenv
+//      node index.js
 
 import 'dotenv/config'
 import { ImapFlow } from 'imapflow'
 import { simpleParser } from 'mailparser'
+import * as cheerio from 'cheerio'
 
 function required(name) {
   const v = process.env[name]
@@ -34,28 +36,106 @@ function addrListToText(list) {
     .join(', ')
 }
 
-// 🔥 Your action hook: only logs when subject starts with "!Recibiste"
+function normalizeWhitespace(s = '') {
+  return s.replace(/\s+/g, ' ').trim()
+}
+
+function normalizeSubject(s = '') {
+  return s.trim().toLowerCase().replace(/^¡/, '!') // handle Spanish opening exclamation
+}
+
+function extractMontoMotivo(parsed) {
+  let monto = ''
+  let motivo = ''
+
+  const html = parsed.html || ''
+  const text = parsed.text || ''
+
+  if (html) {
+    const $ = cheerio.load(html)
+    const pick = (label) => {
+      // Find a TD whose text equals the label (case-insensitive), then get value from same row
+      const td = $('td')
+        .filter(
+          (_, el) => normalizeWhitespace($(el).text()).toLowerCase() === label
+        )
+        .first()
+      if (td.length) {
+        const tr = td.closest('tr')
+        let val = normalizeWhitespace(
+          tr.find('td.text-subtitle-table').first().text()
+        )
+        if (!val) {
+          // Fallback: any following TDs
+          val = normalizeWhitespace(td.nextAll('td').last().text())
+        }
+        return val
+      }
+      return ''
+    }
+    monto = pick('monto')
+    motivo = pick('motivo')
+  }
+
+  if ((!monto || !motivo) && text) {
+    // Text fallback: scan lines
+    const lines = text
+      .split(/\r?\n/)
+      .map((l) => normalizeWhitespace(l))
+      .filter(Boolean)
+    for (let i = 0; i < lines.length; i++) {
+      const low = lines[i].toLowerCase()
+      if (!monto && low.startsWith('monto')) {
+        monto =
+          normalizeWhitespace(lines[i].replace(/^monto\s*:?/i, '')) ||
+          lines[i + 1] ||
+          ''
+      }
+      if (!motivo && low.startsWith('motivo')) {
+        motivo =
+          normalizeWhitespace(lines[i].replace(/^motivo\s*:?/i, '')) ||
+          lines[i + 1] ||
+          ''
+      }
+    }
+  }
+
+  return { monto, motivo }
+}
+
+function getAddresses(addrObj) {
+  const arr = addrObj?.value || []
+  return arr.map((x) => (x.address || '').toLowerCase()).filter(Boolean)
+}
+
+// 🔥 Action hook: log only when (subject starts with !Recibiste/¡Recibiste) AND (From is notificaciones@deunaapp.com)
 async function onNewEmail(parsed) {
-  const from = parsed.from?.text || ''
+  const fromText = parsed.from?.text || ''
   const to = parsed.to?.text || ''
   const cc = parsed.cc?.text || ''
   const subjectRaw = parsed.subject || '(no subject)'
-  const subject = subjectRaw.trim()
+  const subjectNorm = normalizeSubject(subjectRaw)
 
-  // Filter: only act if subject starts with "!Recibiste" (case-insensitive)
-  if (!subject.toLowerCase().startsWith('!recibiste')) {
-    return // ignore non-matching emails
-  }
+  const fromAddrs = getAddresses(parsed.from)
+  const isFromDeUna = fromAddrs.includes('notificaciones@deunaapp.com')
+
+  // Filters
+  const subjMatch = subjectNorm.startsWith('!recibiste')
+  if (!(subjMatch /*&& isFromDeUna*/)) return
 
   const attachments = (parsed.attachments || [])
     .map((a) => a.filename)
     .filter(Boolean)
 
+  const { monto, motivo } = extractMontoMotivo(parsed)
+
   console.log('--- NEW EMAIL -------------------------------------------------')
-  console.log('From   :', from)
+  console.log('From   :', fromText)
   console.log('To     :', to)
   if (cc) console.log('Cc     :', cc)
-  console.log('Subject:', subject)
+  console.log('Subject:', subjectRaw)
+  if (monto) console.log('Monto  :', monto)
+  if (motivo) console.log('Motivo :', motivo)
   if (attachments.length) console.log('Files  :', attachments.join(', '))
   console.log('Msg-ID :', parsed.messageId)
   console.log('---------------------------------------------------------------')
@@ -87,7 +167,6 @@ async function seedFromUnseen() {
 }
 
 client.on('exists', async () => {
-  // New message count changed → fetch everything after lastUid
   const lock = await client.getMailboxLock('INBOX')
   try {
     const start = Math.max(lastUid + 1, 1)
@@ -103,7 +182,6 @@ client.on('exists', async () => {
     }
 
     if (newCount === 0) {
-      // Sometimes EXISTS fires for flag changes; advance baseline safely
       const baseline = client.mailbox?.uidNext
         ? client.mailbox.uidNext - 1
         : lastUid
@@ -140,7 +218,6 @@ client.on('error', (err) => {
 
     await seedFromUnseen()
     console.log('🟢 Live listening with IDLE… (Ctrl+C to exit)')
-    // Keep process alive; ImapFlow maintains IDLE after mailboxOpen
   } catch (err) {
     console.error(
       '❌ Failed:',
