@@ -1,8 +1,9 @@
-// index.js — step 3: add live listener (IDLE) with burst-safe range fetching
+// index.js — step 4: parse full messages (mailparser) + live listener with burst-safe range
 // Run: node index.js
 
 import 'dotenv/config'
 import { ImapFlow } from 'imapflow'
+import { simpleParser } from 'mailparser'
 
 function required(name) {
   const v = process.env[name]
@@ -15,7 +16,7 @@ function required(name) {
 
 const host = required('IMAP_HOST') // e.g. imap.gmail.com
 const user = required('IMAP_USER') // full email
-const pass = required('IMAP_PASS').replace(/\s+/g, '').trim() // strip spaces just in case
+const pass = required('IMAP_PASS').split(' ').join('').trim() // sanitize any spaces
 
 const client = new ImapFlow({
   host,
@@ -33,6 +34,33 @@ function addrListToText(list) {
     .join(', ')
 }
 
+// 🔥 Your action hook: customize this to do something with each new email
+async function onNewEmail(parsed) {
+  const from = parsed.from?.text || ''
+  const to = parsed.to?.text || ''
+  const cc = parsed.cc?.text || ''
+  const subject = parsed.subject || '(no subject)'
+
+  const attachments = (parsed.attachments || [])
+    .map((a) => a.filename)
+    .filter(Boolean)
+
+  console.log('--- NEW EMAIL -------------------------------------------------')
+  console.log('From   :', from)
+  console.log('To     :', to)
+  if (cc) console.log('Cc     :', cc)
+  console.log('Subject:', subject)
+
+  if (attachments.length) console.log('Files  :', attachments.join(', '))
+  console.log('Msg-ID :', parsed.messageId)
+  console.log('---------------------------------------------------------------')
+
+  // Example: if you wanted to react to certain subjects
+  // if (/invoice/i.test(subject)) {
+  //   await fetch('https://your-webhook', { method: 'POST', body: JSON.stringify({ from, subject }) });
+  // }
+}
+
 let lastUid = 0 // highest UID we've processed
 
 async function seedFromUnseen() {
@@ -43,14 +71,11 @@ async function seedFromUnseen() {
   let count = 0
   for await (const msg of client.fetch(
     { seen: false },
-    { uid: true, envelope: true }
+    { uid: true, source: true }
   )) {
     count++
-    const env = msg.envelope || {}
-    const subject = env.subject || '(no subject)'
-    const from = addrListToText(env.from)
-    const to = addrListToText(env.to)
-    console.log(`[UID ${msg.uid}] ${subject} — from: ${from} — to: ${to}`)
+    const parsed = await simpleParser(msg.source)
+    await onNewEmail(parsed)
     if (msg.uid > lastUid) lastUid = msg.uid
   }
   if (count === 0) console.log('✅ No unseen messages.')
@@ -69,14 +94,11 @@ client.on('exists', async () => {
     let newCount = 0
     for await (const msg of client.fetch(
       { uid: `${start}:*` },
-      { uid: true, envelope: true }
+      { uid: true, source: true }
     )) {
       newCount++
-      const env = msg.envelope || {}
-      const subject = env.subject || '(no subject)'
-      const from = addrListToText(env.from)
-      const to = addrListToText(env.to)
-      console.log(`🆕 [UID ${msg.uid}] ${subject} — from: ${from} — to: ${to}`)
+      const parsed = await simpleParser(msg.source)
+      await onNewEmail(parsed)
       if (msg.uid > lastUid) lastUid = msg.uid
     }
 
@@ -110,7 +132,6 @@ client.on('close', async () => {
 client.on('error', (err) => {
   console.error('IMAP error:', err?.responseText || err?.message || err)
 })
-
 ;(async () => {
   try {
     console.log(`Connecting to ${host}…`)
