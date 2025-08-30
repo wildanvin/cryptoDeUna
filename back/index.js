@@ -1,4 +1,4 @@
-// index.js — step 4: parse full messages (mailparser) + live listener with burst-safe range
+// index.js — step 4.1: filter by subject prefix "!Recibiste" and log matching emails
 // Run: node index.js
 
 import 'dotenv/config'
@@ -34,12 +34,18 @@ function addrListToText(list) {
     .join(', ')
 }
 
-// 🔥 Your action hook: customize this to do something with each new email
+// 🔥 Your action hook: only logs when subject starts with "!Recibiste"
 async function onNewEmail(parsed) {
   const from = parsed.from?.text || ''
   const to = parsed.to?.text || ''
   const cc = parsed.cc?.text || ''
-  const subject = parsed.subject || '(no subject)'
+  const subjectRaw = parsed.subject || '(no subject)'
+  const subject = subjectRaw.trim()
+
+  // Filter: only act if subject starts with "!Recibiste" (case-insensitive)
+  if (!subject.toLowerCase().startsWith('!recibiste')) {
+    return // ignore non-matching emails
+  }
 
   const attachments = (parsed.attachments || [])
     .map((a) => a.filename)
@@ -50,15 +56,9 @@ async function onNewEmail(parsed) {
   console.log('To     :', to)
   if (cc) console.log('Cc     :', cc)
   console.log('Subject:', subject)
-
   if (attachments.length) console.log('Files  :', attachments.join(', '))
   console.log('Msg-ID :', parsed.messageId)
   console.log('---------------------------------------------------------------')
-
-  // Example: if you wanted to react to certain subjects
-  // if (/invoice/i.test(subject)) {
-  //   await fetch('https://your-webhook', { method: 'POST', body: JSON.stringify({ from, subject }) });
-  // }
 }
 
 let lastUid = 0 // highest UID we've processed
