@@ -12,6 +12,7 @@
   "dependencies": {
     "cheerio": "^1.1.2",
     "dotenv": "^17.2.1",
+    "ethers": "^6.15.0",
     "imapflow": "^1.0.195",
     "mailparser": "^3.7.4"
   }
