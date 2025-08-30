@@ -223,7 +223,7 @@ async function onNewEmail(parsed) {
   const fromAddrs = getAddresses(parsed.from)
   const isFromDeUna = fromAddrs.includes('notificaciones@deunaapp.com')
   const subjMatch = subjectNorm.startsWith('¡recibiste') // strictly requires opening ¡
-  if (!(subjMatch /*&& isFromDeUna*/)) return
+  if (!(subjMatch && isFromDeUna)) return
 
   const { monto, motivo } = extractMontoMotivo(parsed)
   const montoUSD = parseUSDFromMonto(monto)
