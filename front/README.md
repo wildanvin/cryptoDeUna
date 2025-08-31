@@ -1,98 +1,98 @@
 # CryptoDeUna - Frontend
 
-Una aplicación de onboarding web3 diseñada específicamente para ciudadanos ecuatorianos. CryptoDeUna facilita la compra de ETH en la red Lisk de manera súper fácil y rápida.
+A web3 onboarding app designed specifically for Ecuadorian citizens. CryptoDeUna makes buying ETH on the Lisk network super easy and fast.
 
-## 🚀 Características
+## 🚀 Features
 
-- **Balance en Tiempo Real**: Consulta el balance disponible de fondos en la red Lisk
-- **Conversión USD**: Conversión automática de ETH a USD usando la API de Coinbase
-- **Integración DeUna**: Botón de pago directo que redirige a la plataforma DeUna
-- **Código QR**: Código QR integrado para facilitar el acceso desde móviles
-- **Solo Móvil**: Optimizado exclusivamente para dispositivos móviles
-- **Educación Web3**: Páginas educativas sobre DeFi, wallets, ENS, multisigs y ecosistema
+- **Real-Time Balance**: Check available funds on the Lisk network
+- **USD Conversion**: Automatic ETH→USD conversion using the Coinbase API
+- **DeUna Integration**: Direct payment button that redirects to the DeUna platform
+- **QR Code**: Built-in QR code for easy mobile access
+- **Mobile Only**: Optimized exclusively for mobile devices
+- **Web3 Education**: Educational pages on DeFi, wallets, ENS, multisigs, and ecosystem
 
-## 📋 Requisitos Previos
+## 📋 Prerequisites
 
-Antes de comenzar, asegúrate de tener instalado:
+Before you start, make sure you have:
 
-- **Node.js** (versión 18.0 o superior)
-- **npm** (viene incluido con Node.js)
-- **Git** (opcional, para clonar el repositorio)
+- **Node.js** (version 18.0 or higher)
+- **npm** (comes with Node.js)
+- **Git** (optional, to clone the repo)
 
-### Verificar instalación:
+### Verify installation:
 
 ```bash
 node --version
 npm --version
 ```
 
-## 🛠️ Instalación
+## 🛠️ Installation
 
 ```bash
 cd cryptoDeUna
 ```
 
-### Paso 2: Instalar dependencias
+### Step 2: Install dependencies
 
 ```bash
 npm install
 ```
 
-### Paso 3: Ejecutar en modo desarrollo
+### Step 3: Run in development mode
 
 ```bash
 npm run dev
 ```
 
-### Paso 4: Abrir en el navegador
+### Step 4: Open in the browser
 
-Abre tu navegador y ve a: `http://localhost:3000`
+Open: `http://localhost:3000`
 
-## 📱 Uso Recomendado
+## 📱 Recommended Use
 
-**¡IMPORTANTE!** Esta aplicación está optimizada para dispositivos móviles y requiere la aplicación DeUna instalada para funcionar correctamente.
+**IMPORTANT!** This app is optimized for mobile devices and requires the DeUna app installed to work properly.
 
-## 🏗️ Estructura del Proyecto
+## 🏗️ Project Structure
 
 ```
 cryptodeuna-app/
-├── app/                    # App Router de Next.js
-│   ├── page.tsx           # Página principal
-│   ├── layout.tsx         # Layout global
-│   ├── globals.css        # Estilos globales
-│   ├── ecosystem/         # Página educativa sobre ecosistema
-│   ├── defi/             # Página educativa sobre DeFi
-│   ├── wallets/          # Página educativa sobre wallets
-│   ├── multisigs/        # Página educativa sobre multisigs
-│   └── ens/              # Página educativa sobre ENS
-├── components/            # Componentes reutilizables
-│   ├── balance-card.tsx   # Tarjeta de balance con API
-│   ├── payment-button.tsx # Botón de pago a DeUna
-│   └── mobile-only-notice.tsx # Aviso para móviles
-├── public/               # Archivos estáticos
-│   └── qr-deuna.png     # Código QR de DeUna
-└── README.md            # Este archivo
+├── app/                    # Next.js App Router
+│   ├── page.tsx           # Home page
+│   ├── layout.tsx         # Global layout
+│   ├── globals.css        # Global styles
+│   ├── ecosystem/         # Educational page: ecosystem
+│   ├── defi/              # Educational page: DeFi
+│   ├── wallets/           # Educational page: wallets
+│   ├── multisigs/         # Educational page: multisigs
+│   └── ens/               # Educational page: ENS
+├── components/            # Reusable components
+│   ├── balance-card.tsx   # Balance card with API
+│   ├── payment-button.tsx # Payment button to DeUna
+│   └── mobile-only-notice.tsx # Mobile-only notice
+├── public/                # Static files
+│   └── qr-deuna.png       # DeUna QR code
+└── README.md              # This file
 ```
 
-## 🔧 Tecnologías Utilizadas
+## 🔧 Tech Stack
 
-- **Next.js 15** - Framework React con App Router
-- **React 18** - Biblioteca de interfaz de usuario
-- **TypeScript** - Tipado estático
-- **Tailwind CSS v4** - Framework de estilos
-- **Shadcn/ui** - Componentes de UI
-- **Lisk API** - Para consultar balances en blockchain
-- **Coinbase API** - Para conversión de precios ETH/USD
+- **Next.js 15** – React framework with App Router
+- **React 18** – UI library
+- **TypeScript** – Static typing
+- **Tailwind CSS v4** – Styling framework
+- **shadcn/ui** – UI components
+- **Lisk API** – Query blockchain balances
+- **Coinbase API** – ETH/USD price conversion
 
-## 🌐 APIs Utilizadas
+## 🌐 APIs Used
 
-### Balance de Lisk
+### Lisk Balance
 
 - **Endpoint**: `https://lisk.drpc.org`
-- **Dirección**: `0x70E1D904c1b50A4B77a38FfA4ec14217493484e3`
-- **Método**: `eth_getBalance`
+- **Address**: `0x70E1D904c1b50A4B77a38FfA4ec14217493484e3`
+- **Method**: `eth_getBalance`
 
-### Precio ETH/USD
+### ETH/USD Price
 
 - **Endpoint**: `https://api.coinbase.com/v2/exchange-rates?currency=ETH`
-- **Uso**: Conversión automática de ETH a USD
+- **Use**: Automatic ETH→USD conversion
